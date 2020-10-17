@@ -1,13 +1,14 @@
 import pygame
 import math
 import numpy as np
+import serial
+import struct
+import datetime
+import os
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from pygame.locals import *
 from datetime import datetime
-import serial
-import os
-
 from math import sqrt, acos, sin, cos, atan2, radians
 from sklearn.metrics import mean_squared_error
 
@@ -82,30 +83,31 @@ def main():
 
         while True:
             event = pygame.event.poll()  # get a single event from the queue
-            if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
+            if event.type == KEYDOWN:
+                if event.key == K_ESCAPE:
+                    break
+                elif event.key == pygame.K_r:
+                    flag = not flag
+                    if flag:
+                        int_flag += 1
+                elif event.key == pygame.K_s:  # resetting status/variables and create the output file
+                    if txt_file is not None:
+                        txt_file.close()
+
+                    current_frame = 0
+                    NUMBER_POSITION = 100
+                    output_folder = os.path.join('tests', f'T{NUMBER_POSITION}')
+                    output_folder = os.path.join(os.getcwd(), output_folder)
+
+                    output_file = datetime.now().strftime("%Y-%m-%d--%H-%M-%S")
+                    output_file += f'from0to{NUMBER_POSITION}.csv'
+                    txt_file = open(os.path.join(output_folder, output_file), 'wt')
+            elif event.type == QUIT:
                 break
 
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
-                flag = not flag
-                if flag:
-                    int_flag += 1
-
-            # resetting status/variables and create the output file
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_s:
-                if txt_file is not None:
-                    txt_file.close()
-
-                current_frame = 0
-                NUMBER_POSITION = 100
-                output_folder = os.path.join('tests', f'T{NUMBER_POSITION}')
-                output_folder = os.path.join(os.getcwd(), output_folder)
-
-                output_file = datetime.now().strftime("%Y-%m-%d--%H-%M-%S")
-                output_file += f'from0to{NUMBER_POSITION}.csv'
-                txt_file = open(os.path.join(output_folder, output_file), 'wt')
-
-            [w, nx, ny, nz, _, _, _, _, _, _, _, _, _, sys_cal, accel_cal, gyro_cal, rmag_cal] = read_data(ser)
-            draw(w, nx, ny, nz, sys_cal, accel_cal, gyro_cal, rmag_cal)
+            #[w, nx, ny, nz, _, _, _, _, _, _, _, _, _, sys_cal, accel_cal, gyro_cal, rmag_cal] = read_data(ser)
+            [w, nx, ny, nz, sys_cal, accel_cal, gyro_cal, mag_cal] = read_data(ser)
+            draw(w, nx, ny, nz, sys_cal, accel_cal, gyro_cal, mag_cal)
 
             # if accel_cal == 3
             # formatting the output
@@ -163,6 +165,33 @@ def init():
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST)
 
 
+def read_data(ser: serial) -> list:
+    ser.flushInput()  # Flush input buffer, discarding all it’s contents.
+    while not(ser.read() == b'B' and ser.read() == b'F'):
+        pass        
+                
+    while ser.in_waiting < 20:
+        pass
+        
+    payload = ser.read(20)    
+    
+    #quaternion data
+    quat = struct.unpack('4f', payload[0:16])
+    w = quat[0]
+    nx = quat[1]
+    ny = quat[2]
+    nz = quat[3]      
+    
+    #calibration status data
+    sys_cal = payload[16]
+    accel_cal = payload[17]
+    gyro_cal = payload[18]
+    mag_cal = payload[19]
+    
+    print("{:10.6f}, {:10.6f}, {:10.6f}, {:10.6f}, {:4d}, {:4d}, {:4d}, {:4d}".format(w, nx, ny, nz, sys_cal, accel_cal, gyro_cal, mag_cal)) 
+
+    return [w, nx, ny, nz, sys_cal, accel_cal, gyro_cal, mag_cal]
+"""
 def read_data(ser):
     ser.reset_input_buffer()  # Flush input buffer, discarding all it’s contents.
     line = ser.readline().decode('UTF-8').replace('\n', '')  # Read and return one line from the stream.
@@ -193,7 +222,7 @@ def read_data(ser):
         return [w, nx, ny, nz, ax, ay, az, gx, gy, gz, mx, my, mz, sys_cal, accel_cal, gyro_cal, mag_cal]
     else:
         return [0] * 17
-
+"""
 
 def draw(w, nx, ny, nz, sys_cal, accel_cal, gyro_cal, mag_cal):
     def draw_sensor() -> ():
@@ -281,9 +310,9 @@ def draw_text(position: tuple, text: str, size: int) -> ():
 
 
 if __name__ == '__main__':
-    # main()
-    np.set_printoptions(precision=4, suppress=True)
-    axis = compute_sensor_axis(0.1, 0.7, 0, 0)
-    print(axis)
-    the = compute_sensor_theoretical(0, 0, axis)
-    print(the)
+    main()
+    # np.set_printoptions(precision=4, suppress=True)
+    # axis = compute_sensor_axis(0.1, 0.7, 0, 0)
+    # print(axis)
+    # the = compute_sensor_theoretical(0, 0, axis)
+    # print(the)
