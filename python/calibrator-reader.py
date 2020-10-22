@@ -20,16 +20,17 @@ def measure_error(v1: np.ndarray, v2: np.ndarray) -> float:
 
 
 def compute_sensor_axis(w: float, x: float, y: float, z: float) -> np.ndarray:
-    angle = 2.0 * acos(w)
+    angle = 2.0 * acos(w) # returns angle in radians
     norm = sqrt(x * x + y * y + z * z)
     if norm == 0:
         return np.zeros(3)
-    ux = -x / norm
-    uy = z / norm
-    uz = y / norm
+    # ux = -x / norm
+    ux = x / norm
+    uy = y / norm
+    uz = z / norm
     return np.array([ux * uy * (1 - cos(angle)) - uz * sin(angle),
                      cos(angle) + uy * uy * (1 - cos(angle)),
-                     uz * uy * (1 - cos(angle) + ux * sin(angle))])
+                     uz * uy * (1 - cos(angle) )+ ux * sin(angle)])
 
 
 def compute_sensor_theoretical(theta: float, phi: float, sensor_axis: np.ndarray) -> np.ndarray:
@@ -40,21 +41,24 @@ def compute_sensor_theoretical(theta: float, phi: float, sensor_axis: np.ndarray
     """
 
     def origin_angles(v: np.ndarray) -> float:
-        theta_rad = atan2(v[0], v[1])
+        theta_rad = atan2(v[1], v[0])
         theta_deg = (theta_rad / np.pi * 180)
-        theta_deg = theta_deg + ((0 if theta_rad > 0 else 360) % 360)
+        theta_deg = theta_deg # + ((0 if theta_rad > 0 else 360) % 360)
         return theta_deg
 
     theta_zero = origin_angles(sensor_axis)
     theta = theta + theta_zero
-    phi = 90 - phi
+    #phi = 90 - phi
 
+    # yaw
     rz = np.array([[np.cos(radians(theta)), -np.sin(radians(theta)), 0],
                    [np.sin(radians(theta)), np.cos(radians(theta)), 0],
                    [0, 0, 1]])
+    # pitch;
     ry = np.array([[np.cos(radians(phi)), 0, np.sin(radians(phi))],
                    [0, 1, 0],
                    [-np.sin(radians(phi)), 0, np.cos(radians(phi))]])
+
     return np.matmul(rz, np.matmul(ry, sensor_axis))
 
 
@@ -83,6 +87,7 @@ def main():
 
         while True:
             event = pygame.event.poll()  # get a single event from the queue
+            # region
             if event.type == KEYDOWN:
                 if event.key == K_ESCAPE:
                     break
@@ -104,17 +109,18 @@ def main():
                     txt_file = open(os.path.join(output_folder, output_file), 'wt')
             elif event.type == QUIT:
                 break
+            # endregion
 
-            #[w, nx, ny, nz, _, _, _, _, _, _, _, _, _, sys_cal, accel_cal, gyro_cal, rmag_cal] = read_data(ser)
             [w, nx, ny, nz, sys_cal, accel_cal, gyro_cal, mag_cal] = read_data(ser)
-            draw(w, nx, ny, nz, sys_cal, accel_cal, gyro_cal, mag_cal)
+            sensorAxis = compute_sensor_axis(w, nx, ny, nz)
+            print([w, nx, ny, nz])
+            draw(w, nx, ny, nz, [sys_cal, accel_cal, gyro_cal, mag_cal], sensorAxis)
 
-            # if accel_cal == 3
             # formatting the output
             output_flag = int_flag if flag else 0
             str_output = f'{frames},{w},{nx},{ny},{nz},{output_flag}'
             sensor_axis = compute_sensor_axis(w, nx, ny, nz)
-            print(sensor_axis)
+            #print(sensor_axis)
 
             if txt_file is not None:
                 txt_file.write(str_output + '\n')
@@ -187,8 +193,7 @@ def read_data(ser: serial) -> list:
     accel_cal = payload[17]
     gyro_cal = payload[18]
     mag_cal = payload[19]
-    
-    print("{:10.6f}, {:10.6f}, {:10.6f}, {:10.6f}, {:4d}, {:4d}, {:4d}, {:4d}".format(w, nx, ny, nz, sys_cal, accel_cal, gyro_cal, mag_cal)) 
+    # print(f"{w:10.6f}, {nx:10.6f}, {ny:10.6f}, {nz:10.6f}")
 
     return [w, nx, ny, nz, sys_cal, accel_cal, gyro_cal, mag_cal]
 """
@@ -224,7 +229,8 @@ def read_data(ser):
         return [0] * 17
 """
 
-def draw(w, nx, ny, nz, sys_cal, accel_cal, gyro_cal, mag_cal):
+def draw(w, nx, ny, nz, calibrator: list, sensor_axis: np.ndarray) -> ():
+    # sys_cal, accel_cal, gyro_cal, mag_cal
     def draw_sensor() -> ():
         glBegin(GL_QUADS)
         glColor3f(0.0, 1.0, 0.0)
@@ -274,29 +280,34 @@ def draw(w, nx, ny, nz, sys_cal, accel_cal, gyro_cal, mag_cal):
 
     # Sensor calibration status
     draw_text((-2.6, 1.5, 2), "Sensor Calibration Status", 16)
-    draw_text((-2.6, 1.3, 2), "Syst: %f, Accel: %f, Gyro: %f, Mag: %f" % (sys_cal, accel_cal, gyro_cal, mag_cal), 16)
+    draw_text((-2.6, 1.3, 2), f"Syst: {calibrator[0]}, Accel: {calibrator[1]}, Gyro: {calibrator[2]}, Mag: {calibrator[3]}", 16)
 
     # Sensor data
+    draw_text((-2.6, -1., 2), f"sensor: {sensor_axis[0]:.3f}, {sensor_axis[1]:.3f}, {sensor_axis[2]:.3f}", 16)
     # drawText((-2.6, -1.0, 2), "Yaw: %f, Pitch: %f, Roll: %f" %(yaw, pitch, roll), 16)
     # drawText((-2.6, -1.0, 2), "Y: %f, P: %f, P-2: %f R: %f" % (yaw, pitch, pitch2, roll), 16)
     # drawText((-2.6, -1.2, 2), "qW: %f, qX: %f, qY: %f, qZ: %f" %(w, nx, ny, nz), 16)
     # drawText((-2.6, -1.6, 2), "qW: %f, qX: %f, qY: %f, qZ: %f" % (w, nx, ny, nz), 16)
-    mag = math.sqrt((nx * nx) + (ny * ny) + nz * nz)
-    mag = 1 if mag == 0 else mag
-    nnx = nx / mag
-    nny = ny / mag
-    nnz = nz / mag
-    draw_text((-2.6, -1.6, 2), "qW: %f, qX: %f, qY: %f, qZ: %f" % (w, nnx, nny, nnz), 16)
-    draw_text((-2.6, -1.2, 2), f"angle: {float(2.0 * math.acos(w) * 180.00 / math.pi): .3f}, "
-                               f"-nx:{-1 * nnx: .3f}, "
-                               f"nz: {nnz: .3f}, "
-                               f"ny: {nny: .3f}", 16)
-    sensorAxis = compute_sensor_axis(w, nx, ny, nz)
-    draw_text((-2.6, -1.4, 2), "X: %f, Y: %f, Z: %f" % (sensorAxis[0], sensorAxis[1], sensorAxis[2]), 16)
+    # mag = math.sqrt((nx * nx) + (ny * ny) + nz * nz)
+    # mag = 1 if mag == 0 else mag
+    # nnx = nx / mag
+    # nny = ny / mag
+    # nnz = nz / mag
+    #
+    # draw_text((-2.6, -1.2, 2), f"angle: {float(2.0 * math.acos(w) * 180.00 / math.pi): .3f}, "
+    #                            f"-nx:{-1 * nnx: .3f}, "
+    #                            f"nz: {nnz: .3f}, "
+    #                            f"ny: {nny: .3f}", 16)
+
+    #sensorAxis = compute_sensor_axis(w, nx, ny, nz)
+
+    #draw_text((-2.6, -1.4, 2), "X: %f, Y: %f, Z: %f" % (sensorAxis[0], sensorAxis[1], sensorAxis[2]), 16)
+    #draw_text((-2.6, -1.6, 2), "qW: %f, qX: %f, qY: %f, qZ: %f" % (w, nnx, nny, nnz), 16)
     # drawText((-2.6, -1.4, 2), "Ax: %f, Ay: %f, Az: %f" % (ax, ay, az), 16)
     # drawText((-2.6, -1.6, 2), "Gx: %f, Gy: %f, Gz: %f" % (gx, gy, gz), 16)
     # drawText((-2.6, -1.8, 2), "Mx: %f, My: %f, Mz: %f" % (mx, my, mz), 16)
-    glRotatef(2 * math.acos(w) * 180.00 / math.pi, -1 * nnx, nnz, nny)
+    # glRotatef(2 * math.acos(w) * 180.00 / math.pi, -1 * nnx, nnz, nny)
+    glRotatef(2 * math.acos(w) * 180.00 / math.pi, -1 * nx, nz, ny)
     # glRotatef(2 * math.acos(w) * 180.00/math.pi, sensorAxis[0], sensorAxis[1], sensorAxis[2])
     draw_sensor()
 
@@ -316,3 +327,7 @@ if __name__ == '__main__':
     # print(axis)
     # the = compute_sensor_theoretical(0, 0, axis)
     # print(the)
+    # print(compute_sensor_axis(0,0,0,0))
+    #axis = [0.2, 0.1, 0.7]
+    #the = compute_sensor_theoretical(0, 0, axis)
+    #print(the)
