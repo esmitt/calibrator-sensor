@@ -9,58 +9,9 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from pygame.locals import *
 from datetime import datetime
-from math import sqrt, acos, sin, cos, atan2, radians
-from sklearn.metrics import mean_squared_error
+import sensor
 
 pitch2 = None
-
-
-def measure_error(v1: np.ndarray, v2: np.ndarray) -> float:
-    return mean_squared_error(v1, v2)
-
-
-def compute_sensor_axis(w: float, x: float, y: float, z: float) -> np.ndarray:
-    angle = 2.0 * acos(w) # returns angle in radians
-    norm = sqrt(x * x + y * y + z * z)
-    if norm == 0:
-        return np.zeros(3)
-    # ux = -x / norm
-    ux = x / norm
-    uy = y / norm
-    uz = z / norm
-    return np.array([ux * uy * (1 - cos(angle)) - uz * sin(angle),
-                     cos(angle) + uy * uy * (1 - cos(angle)),
-                     uz * uy * (1 - cos(angle) )+ ux * sin(angle)])
-
-
-def compute_sensor_theoretical(theta: float, phi: float, sensor_axis: np.ndarray) -> np.ndarray:
-    """
-    :param theta is the latitude
-    :param phi is the longitude
-    :param sensor_axis
-    """
-
-    def origin_angles(v: np.ndarray) -> float:
-        theta_rad = atan2(v[1], v[0])
-        theta_deg = (theta_rad / np.pi * 180)
-        theta_deg = theta_deg # + ((0 if theta_rad > 0 else 360) % 360)
-        return theta_deg
-
-    theta_zero = origin_angles(sensor_axis)
-    theta = theta + theta_zero
-    #phi = 90 - phi
-
-    # yaw
-    rz = np.array([[np.cos(radians(theta)), -np.sin(radians(theta)), 0],
-                   [np.sin(radians(theta)), np.cos(radians(theta)), 0],
-                   [0, 0, 1]])
-    # pitch;
-    ry = np.array([[np.cos(radians(phi)), 0, np.sin(radians(phi))],
-                   [0, 1, 0],
-                   [-np.sin(radians(phi)), 0, np.cos(radians(phi))]])
-
-    return np.matmul(rz, np.matmul(ry, sensor_axis))
-
 
 def main():
     txt_file = None
@@ -85,12 +36,22 @@ def main():
         if frames == 0:
             pass
 
+        # to store initial quaternion/axis
+        flag_initial = False
+        list_quaternion = list()
+        SAVING_FRAMES = 20
+        origin_axis = None
         while True:
             event = pygame.event.poll()  # get a single event from the queue
             # region
             if event.type == KEYDOWN:
                 if event.key == K_ESCAPE:
                     break
+                elif event.key == pygame.K_i:
+                    flag_initial = True
+                    list_quaternion.clear()
+                    current_frame = 0
+                    origin_axis = None
                 elif event.key == pygame.K_r:
                     flag = not flag
                     if flag:
@@ -112,26 +73,40 @@ def main():
             # endregion
 
             [w, nx, ny, nz, sys_cal, accel_cal, gyro_cal, mag_cal] = read_data(ser)
-            sensorAxis = compute_sensor_axis(w, nx, ny, nz)
-            print([w, nx, ny, nz])
-            draw(w, nx, ny, nz, [sys_cal, accel_cal, gyro_cal, mag_cal], sensorAxis)
+
+            if flag_initial:
+                list_quaternion.append([w, nx, ny, nz])
+                if current_frame == 0:
+                    current_frame = frames
+                elif frames - current_frame >= SAVING_FRAMES:
+                    flag_initial = False
+                    # origin_axis = list_axis[len(list_axis)//2]
+                    origin_axis = sensor.get_axis(list_quaternion)
+                    q = list_quaternion[len(list_quaternion) // 2]
+                    print(sensor.compute_sensor_axis(q[0], q[1], q[2], q[3]))
+                else:
+                    origin_axis = str(SAVING_FRAMES - (frames - current_frame))
+
+            draw(w, nx, ny, nz, [sys_cal, accel_cal, gyro_cal, mag_cal], origin_axis)
+            #print([w, nx, ny, nz])
+
 
             # formatting the output
             output_flag = int_flag if flag else 0
             str_output = f'{frames},{w},{nx},{ny},{nz},{output_flag}'
-            sensor_axis = compute_sensor_axis(w, nx, ny, nz)
+            sensor_axis = sensor.compute_sensor_axis(w, nx, ny, nz)
             #print(sensor_axis)
 
-            if txt_file is not None:
-                txt_file.write(str_output + '\n')
+            # if txt_file is not None:
+            #     txt_file.write(str_output + '\n')
 
             # number of frames to record
-            if flag:
-                if current_frame == N_FRAMES:
-                    flag = False
-                current_frame += 1
-            else:
-                current_frame = 0
+            # if flag:
+            #     if current_frame == N_FRAMES:
+            #         flag = False
+            #     current_frame += 1
+            # else:
+            #     current_frame = 0
 
             pygame.display.flip()
             frames += 1
@@ -277,13 +252,19 @@ def draw(w, nx, ny, nz, calibrator: list, sensor_axis: np.ndarray) -> ():
     # Header and footer
     draw_text((-2.6, 1.8, 2), "MARG sensor: BNO055 | Sensor controller: based on Arduino MEGA", 16)
     draw_text((-2.6, -2, 2), "Press Escape to exit.", 14)
+    draw_text((0, -2, 2), "Press 'i' for initial quaternion", 14)
 
     # Sensor calibration status
     draw_text((-2.6, 1.5, 2), "Sensor Calibration Status", 16)
     draw_text((-2.6, 1.3, 2), f"Syst: {calibrator[0]}, Accel: {calibrator[1]}, Gyro: {calibrator[2]}, Mag: {calibrator[3]}", 16)
 
     # Sensor data
-    draw_text((-2.6, -1., 2), f"sensor: {sensor_axis[0]:.3f}, {sensor_axis[1]:.3f}, {sensor_axis[2]:.3f}", 16)
+    if sensor_axis is None:
+        draw_text((-2.6, -1., 2), " Waiting to set initial position", 16)
+    elif isinstance(sensor_axis, str) :
+        draw_text((-2.6, -1., 2), f" Calculating initial position {sensor_axis}...wait", 16)
+    else:
+        draw_text((-2.6, -1., 2), f"origin axis: {sensor_axis[0]:.3f}, {sensor_axis[1]:.3f}, {sensor_axis[2]:.3f}", 16)
     # drawText((-2.6, -1.0, 2), "Yaw: %f, Pitch: %f, Roll: %f" %(yaw, pitch, roll), 16)
     # drawText((-2.6, -1.0, 2), "Y: %f, P: %f, P-2: %f R: %f" % (yaw, pitch, pitch2, roll), 16)
     # drawText((-2.6, -1.2, 2), "qW: %f, qX: %f, qY: %f, qZ: %f" %(w, nx, ny, nz), 16)
