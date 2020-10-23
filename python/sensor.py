@@ -1,22 +1,22 @@
 from math import sqrt, acos, sin, cos, atan2, radians
 from sklearn.metrics import mean_squared_error
 import numpy as np
-import numpy.matlib as npm
 from pyquaternion import Quaternion
 import pandas as pd
+import typing
 
 
 # Q is a Nx4 numpy matrix and contains the quaternions to average in the rows.
 # The quaternions are arranged as (w,x,y,z), with w being the scalar
 # The result will be the average quaternion of the input. Note that the signs
 # of the output quaternion can be reversed, since q and -q describe the same orientation
-def averageQuaternions(Q: np.array) -> np.real:
+def average_quaternions(quat: np.array) -> np.real:
     # Number of quaternions to average
-    M = Q.shape[0]
+    M = quat.shape[0]
     A = np.zeros(shape=(4, 4))
 
     for i in range(0, M):
-        q = Q[i,:]
+        q = quat[i, :]
         # multiply q with its transposed version q' and add A
         A = np.outer(q, q) + A
 
@@ -27,7 +27,7 @@ def averageQuaternions(Q: np.array) -> np.real:
     # Sort by largest eigenvalue
     eigenVectors = eigenVectors[:, eigenValues.argsort()[::-1]]
     # return the real part of the largest eigenvector (has only real part)
-    #return np.real(eigenVectors[:, 0].A1)
+    # return np.real(eigenVectors[:, 0].A1)
     return np.real(np.asarray(eigenVectors[:, 0]).ravel())
 
 
@@ -36,7 +36,7 @@ def remove_outliers(list_values: list, min_quantile: float = 0.1, max_quantile: 
 
     # convert each quaternion into its angle
     for quat in list_values:
-      list_angles.append(Quaternion(quat).angle)
+        list_angles.append(Quaternion(quat).angle)
 
     # convert into pandas Series to filter according quantile
     list_series = pd.Series(list_angles)
@@ -45,17 +45,16 @@ def remove_outliers(list_values: list, min_quantile: float = 0.1, max_quantile: 
 
     return_list = []
     for index in range(len(list_outliers)):
-      if list_outliers[index]:
-        return_list.append(list_values[index])
+        if list_outliers[index]:
+            return_list.append(list_values[index])
 
     return return_list
 
 
-def get_axis(list_quaternion: list) -> np.array:
-    list_reduced = remove_outliers(list_quaternion)
-    npa = np.asarray(list_reduced, dtype=np.float32)
-    q = averageQuaternions(npa)
-    return compute_sensor_axis(q[0], q[1], q[2], q[3])
+def get_axis(list_quaternion: list) -> typing.Tuple[np.real, np.array]:
+    list_red = remove_outliers(list_quaternion)
+    q = average_quaternions(np.asarray(list_red, dtype=np.float32))
+    return q, compute_sensor_axis(q[0], q[1], q[2], q[3])
 
 
 def measure_error(v1: np.ndarray, v2: np.ndarray) -> float:
@@ -63,7 +62,7 @@ def measure_error(v1: np.ndarray, v2: np.ndarray) -> float:
 
 
 def compute_sensor_axis(w: float, x: float, y: float, z: float) -> np.ndarray:
-    angle = 2.0 * acos(w) # returns angle in radians
+    angle = 2.0 * acos(w)  # returns angle in radians
     norm = sqrt(x * x + y * y + z * z)
     if norm == 0:
         return np.zeros(3)
@@ -73,7 +72,7 @@ def compute_sensor_axis(w: float, x: float, y: float, z: float) -> np.ndarray:
     uz = z / norm
     return np.array([ux * uy * (1 - cos(angle)) - uz * sin(angle),
                      cos(angle) + uy * uy * (1 - cos(angle)),
-                     uz * uy * (1 - cos(angle) )+ ux * sin(angle)])
+                     uz * uy * (1 - cos(angle)) + ux * sin(angle)])
 
 
 def compute_sensor_theoretical(theta: float, phi: float, sensor_axis: np.ndarray) -> np.ndarray:
@@ -86,12 +85,12 @@ def compute_sensor_theoretical(theta: float, phi: float, sensor_axis: np.ndarray
     def origin_angles(v: np.ndarray) -> float:
         theta_rad = atan2(v[1], v[0])
         theta_deg = (theta_rad / np.pi * 180)
-        theta_deg = theta_deg # + ((0 if theta_rad > 0 else 360) % 360)
+        theta_deg = theta_deg  # + ((0 if theta_rad > 0 else 360) % 360)
         return theta_deg
 
     theta_zero = origin_angles(sensor_axis)
     theta = theta + theta_zero
-    #phi = 90 - phi
+    # phi = 90 - phi
 
     # yaw
     rz = np.array([[np.cos(radians(theta)), -np.sin(radians(theta)), 0],
@@ -106,10 +105,10 @@ def compute_sensor_theoretical(theta: float, phi: float, sensor_axis: np.ndarray
 
 
 if __name__ == "__main__":
-    l = [[0.1, 0.2, 0.3, 0.4], [0.3, 0.4, 0.5, 0.6], [0.1, 0.2, 0.3, 0.4], [0.3, 0.4, 0.5, 0.6]]
-    list_reduced = remove_outliers(l)
+    ll = [[0.1, 0.2, 0.3, 0.4], [0.3, 0.4, 0.5, 0.6], [0.1, 0.2, 0.3, 0.4], [0.3, 0.4, 0.5, 0.6]]
+    list_reduced = remove_outliers(ll)
     print(list_reduced)
     npa = np.asarray(list_reduced, dtype=np.float32)
     print(npa)
-    t = averageQuaternions(npa)
+    t = average_quaternions(npa)
     print(t)
