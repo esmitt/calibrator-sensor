@@ -118,7 +118,8 @@ def main():
                     current_axis = str(SAVING_FRAMES - (frames - current_frame))
             else:
                 if isinstance(origin_axis, np.ndarray):
-                    current_axis = sensor.compute_sensor_axis(w, nx, ny, nz)
+                    _,_,current_axis = sensor.compute_sensor_axis(w, nx, ny, nz)
+                    #print(w, nx, ny, nz)
 
             draw(w, nx, ny, nz, [sys_cal, accel_cal, gyro_cal, mag_cal], origin_axis, current_axis, last_axis)
 
@@ -257,12 +258,14 @@ def draw(w, nx, ny, nz: float, calibrator: list, sensor_axis, current_axis, last
         draw_text((-2.6, -1.2, 2), f"current axis: {current_axis[0]:.3f}, {current_axis[1]:.3f}, "
                                    f"{current_axis[2]:.3f}", 16)
 
+        draw_text((-2.6, -1.4, 2), f"current q: {w:.3f}, {nx:.3f}, {ny:.3f} {nz:.3f}", 16)
+
     if isinstance(last_axis, np.ndarray):
-        draw_text((-2.6, -1.4, 2), f"last axis: {last_axis[0]:.3f}, {last_axis[1]:.3f}, {last_axis[2]:.3f}", 16,
+        draw_text((-2.8, -1.2, 2), f"last axis: {last_axis[0]:.3f}, {last_axis[1]:.3f}, {last_axis[2]:.3f}", 16,
                   (180, 190, 140, 255))
     # draw more in Y -1.6 or -1.8
 
-    glRotatef(2 * math.acos(w) * 180.00 / math.pi, -1 * nx, nz, ny)
+    glRotatef(2 * math.acos(w) * 180.00 / math.pi, -nx, nz, ny)
     draw_sensor()
 
 

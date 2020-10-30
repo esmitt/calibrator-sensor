@@ -54,11 +54,48 @@ def remove_outliers(list_values: list, min_quantile: float = 0.1, max_quantile: 
 def get_axis(list_quaternion: list) -> typing.Tuple[np.real, np.array]:
     list_red = remove_outliers(list_quaternion)
     q = average_quaternions(np.asarray(list_red, dtype=np.float32))
-    return q, compute_sensor_axis(q[0], q[1], q[2], q[3])
+    rx, ry, rz = compute_sensor_axis(q[0], q[1], q[2], q[3])
+    return q, rz
 
 
 def measure_error(v1: np.ndarray, v2: np.ndarray) -> float:
     return mean_squared_error(v1, v2)
+
+
+def quadratic_error(v1: np.ndarray, v2: np.ndarray) -> float:
+    return (sqrt(v1[0]*v2[0]) + (v1[1]*v2[1]) + (v1[2]*v2[2]))
+
+
+# def compute_sensor_axis3(w: float, x: float, y: float, z: float) -> np.ndarray:
+#     cos_a = w
+#     angle = 2.0 * acos(w)  # returns angle in radians
+#     norm = sqrt(x * x + y * y + z * z)
+#     if norm == 0:
+#         return np.zeros(3)
+#     # ux = -x / norm
+#     ux = x / norm
+#     uy = y / norm
+#     uz = z / norm
+#     sin_a = sqrt(1.0 - cos_a * cos_a)
+#     if abs(sin_a) < 0.0005:
+#         sin_a = 1
+#     return angle, np.array([ux / sin_a, uy / sin_a, uz / sin_a])
+
+#
+# def compute_sensor_axis(w: float, x: float, y: float, z: float) -> np.ndarray:
+#     cos_a = w
+#     angle = 2.0 * acos(w)  # returns angle in radians
+#     norm = sqrt(x * x + y * y + z * z)
+#     if norm == 0:
+#         return np.zeros(3)
+#     # ux = -x / norm
+#     ux = x / norm
+#     uy = y / norm
+#     uz = z / norm
+#     sin_a = sqrt(1.0 - cos_a * cos_a)
+#     if abs(sin_a) < 0.0005:
+#         sin_a = 1
+#     return np.array([ux / sin_a, uy / sin_a, uz / sin_a])
 
 
 def compute_sensor_axis(w: float, x: float, y: float, z: float) -> np.ndarray:
@@ -70,9 +107,19 @@ def compute_sensor_axis(w: float, x: float, y: float, z: float) -> np.ndarray:
     ux = x / norm
     uy = y / norm
     uz = z / norm
-    return np.array([ux * uy * (1 - cos(angle)) - uz * sin(angle),
+    ry = np.array([ux * uy * (1 - cos(angle)) - uz * sin(angle),
                      cos(angle) + uy * uy * (1 - cos(angle)),
                      uz * uy * (1 - cos(angle)) + ux * sin(angle)])
+    rx = np.array([cos(angle) + ux*ux*(1 - cos(angle)),
+                   uy*ux*(1 - cos(angle)) + uz*sin(angle),
+                   uz*ux*(1 - cos(angle)) - uy*sin(angle)])
+    rz = np.array([ux*uz*(1 - cos(angle)) + uy*sin(angle),
+                   uy*uz*(1 - cos(angle)) - ux*sin(angle),
+                   cos(angle) + uz*uz*(1 - cos(angle))])
+    rx[0] = -rx[0]
+    ry[0] = -ry[0]
+    rz[0] = -rz[0]
+    return rx, ry, rz
 
 
 def compute_sensor_theoretical(theta: float, phi: float, sensor_axis: np.ndarray) -> np.ndarray:
@@ -80,6 +127,7 @@ def compute_sensor_theoretical(theta: float, phi: float, sensor_axis: np.ndarray
     :param theta is the latitude
     :param phi is the longitude
     :param sensor_axis
+    :return numpy array of theoretical sensor for the expected rotations
     """
 
     def origin_angles(v: np.ndarray) -> float:
