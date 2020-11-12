@@ -119,7 +119,76 @@ def compute_sensor_axis(w: float, x: float, y: float, z: float) -> np.ndarray:
     rx[0] = -rx[0]
     ry[0] = -ry[0]
     rz[0] = -rz[0]
+
     return rx, ry, rz
+
+def quaternion2rotmatrix(w: float, x: float, y: float, z: float) -> np.ndarray:
+    angle = 2.0 * acos(w)  # returns angle in radians
+    norm = sqrt(x * x + y * y + z * z)
+    if norm == 0:
+        return np.array([np.zeros(3),np.zeros(3), np.zeros(3)])
+    # ux = -x / norm
+    ux = x / norm
+    uy = y / norm
+    uz = z / norm
+    ax = np.array([cos(angle) + ux * ux * (1 - cos(angle)),
+                   uy * ux * (1 - cos(angle)) + uz * sin(angle),
+                   uz * ux * (1 - cos(angle)) - uy * sin(angle)])
+
+    ay = np.array([ux * uy * (1 - cos(angle)) - uz * sin(angle),
+                     cos(angle) + uy * uy * (1 - cos(angle)),
+                     uz * uy * (1 - cos(angle)) + ux * sin(angle)])
+
+    az = np.array([ux*uz*(1 - cos(angle)) + uy*sin(angle),
+                   uy*uz*(1 - cos(angle)) - ux*sin(angle),
+                   cos(angle) + uz*uz*(1 - cos(angle))])
+
+    return np.transpose(np.array([ax, ay, az]))
+
+
+# return the 3 columns
+def compute_axis(w: float, x: float, y: float, z: float):
+    T = np.array([[-1, 0, 0], [0, 0, 1], [0, 1, 0]])
+    R = quaternion2rotmatrix(w, -x, z, y)  # columns
+    #RT = np.matmul(np.linalg.inv(T), np.matmul(R, T))
+    #RT = np.matmul(np.linalg.inv(T), R)
+    RT = np.matmul(T, R)
+    return RT[:, 0], RT[:, 1], RT[:, 2]
+
+
+# def compute_transformed_axis(w: float, x: float, y: float, z: float, ax, ay, az):
+#     Rq = quaternion2rotmatrix(w, x, y, z)
+#     Tax = np.matmul(Rq, ax)
+#     Tay = np.matmul(Rq, ay)
+#     Taz = np.matmul(Rq, az)
+#     return Tax, Tay, Taz
+
+
+def sensor2world(v: np.array):
+    T = np.array([[-1, 0, 0], [0, 0, 1], [0, 1, 0]])
+    return np.matmul(T, v)
+
+
+def compute_axis_theoretical(theta: float, phi: float, ax, ay, az) -> np.ndarray:
+
+    theta_rad = atan2(ax[1], ax[0])
+    theta_deg = (theta_rad / np.pi * 180)
+    theta = theta + theta_deg
+    # yaw
+    global Rz, Ry
+    Rz = np.array([[np.cos(radians(theta)), -np.sin(radians(theta)), 0],
+                   [np.sin(radians(theta)), np.cos(radians(theta)), 0],
+                   [0, 0, 1]])
+    # pitch;
+    Ry = np.array([[np.cos(radians(phi)), 0, np.sin(radians(phi))],
+                   [0, 1, 0],
+                   [-np.sin(radians(phi)), 0, np.cos(radians(phi))]])
+    Rt = np.matmul(Rz, Ry)
+    Tax = np.matmul(Rt, ax)
+    Tay = np.matmul(Rt, ay)
+    Taz = np.matmul(Rt, az)
+
+    return Tax, Tay, Taz
 
 
 def compute_sensor_theoretical(theta: float, phi: float, sensor_axis: np.ndarray) -> np.ndarray:
