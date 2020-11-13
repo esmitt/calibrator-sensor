@@ -9,6 +9,7 @@ from OpenGL.GLU import *
 from pygame.locals import *
 from datetime import datetime
 import sensor
+import pickle
 
 # values to be stored in file
 list_values = list()
@@ -46,6 +47,8 @@ def main():
         list_origin_axis = list()
         ax0, ay0, az0 = None, None, None
         theta, phi = 0, 0
+        list_q = None
+
         while True:
             event = pygame.event.poll()  # get a single event from the queue
             # region
@@ -70,12 +73,15 @@ def main():
                     #flag_initial = True
                     #list_quaternion.clear()
                     #current_frame = 0
-                    #origin_axis = None
+                    #origin_axis = Nnone
                     list_origin_axis.clear()
+                    initial_q = (w, nx, ny, nz)
+                    print(initial_q)
                     ax0, ay0, az0 = sensor.compute_axis(w, nx, ny, nz)
                     list_origin_axis.append(ax0)
                     list_origin_axis.append(ay0)
                     list_origin_axis.append(az0)
+                    print("Initial quaternion saved")
                 elif event.key == pygame.K_a:
                     theta += 10
                 elif event.key == pygame.K_s:
@@ -84,6 +90,18 @@ def main():
                     phi += 10
                 elif event.key == pygame.K_f:
                     phi -= 10
+                elif event.key == pygame.K_c:
+                    if list_q is None:
+                        list_q = list()
+                        list_q.append(list(initial_q))
+                    list_q.append([w, nx, ny, nz])
+                    print(f"Quaternion #{len(list_q)} saved")
+                elif event.key == pygame.K_v:
+                    yaws = sensor.calibrate_angle0_world(initial_q, list_q)
+                    print(yaws)
+                    open_file = open("quaternions.q", "wb")
+                    pickle.dump(list_q, open_file)
+                    open_file.close()
                 elif event.key == pygame.K_p and origin_axis is not None:
                     flag_current = True
                     list_quaternion.clear()
