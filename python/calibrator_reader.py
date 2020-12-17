@@ -98,10 +98,18 @@ def main():
                     print(f"Quaternion #{len(list_q)} saved")
                 elif event.key == pygame.K_v:
                     yaws = sensor.calibrate_angle0_world(initial_q, list_q)
-                    print(yaws)
-                    open_file = open("quaternions.q", "wb")
+                    yaws_0 = sensor.calibrate_angle0_world((1, 0, 0, 1), list_q)
+                    for index in range(len(yaws)):
+                        y = yaws[index]
+                        y0 = yaws_0[index]
+                        print(f"{y} --> {y0}")
+                    output_file = datetime.now().strftime("quaternions-%Y-%m-%d--%H-%M-%S.q")
+                    open_file = open(output_file, "wb")
                     pickle.dump(list_q, open_file)
+                    print(f"saved in {output_file}")
                     open_file.close()
+
+
                 elif event.key == pygame.K_p and origin_axis is not None:
                     flag_current = True
                     list_quaternion.clear()
