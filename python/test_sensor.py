@@ -74,16 +74,7 @@ def error_in_rotsensor_ypr(rotmat: np.ndarray, rotmat_theoretical: np.ndarray) -
     error = np.abs(np.subtract(ypr , ypr_theoretical))
     return error
 
-if __name__ == '__main__':
-    #code_main_dir = r'J:\Experiments\Endoscopy\Navigation\Sensor\Code\python'
-    code_main_dir = os.getcwd()
-
-    sys.path.append(code_main_dir)
-
-    #result_dir = r'J:\Experiments\Endoscopy\Navigation\Sensor\Results\test_Dec_2020'
-    result_dir = os.path.join(code_main_dir, 'test_Dec_2020')
-
-
+def debora_test():
     filenames = ['quaternions-2020-12-17--11-22-16.q',
                  'quaternions-2020-12-17--11-27-33.q']
 
@@ -91,8 +82,12 @@ if __name__ == '__main__':
     index = 0
     filename = os.path.join(result_dir, filenames[index])
     quaternions = load_quaternions(filename=filename)
-    rot_mat = [quat_to_rotmat_world(q) for q in quaternions]
-    sensor_yaws = [rotation_matrix_to_ypr(rot) for rot in rot_mat]
+    rot_mat_world = [quat_to_rotmat_world(q) for q in quaternions]
+    rot_mat_sensor = [quat_to_rotmat_sensor(q[0],q[1],q[2],q[3]) for q in quaternions]
+
+
+    sensor_yaws = [rotation_matrix_to_ypr(rot) for rot in rot_mat_world]
+    sensor_yaws_sensor = [rotation_matrix_to_ypr(rot) for rot in rot_mat_sensor]
 
     angles = [0, 20, 40, 60, 80]
     angles = [0, -20, -40, -60, -80]
@@ -134,10 +129,36 @@ if __name__ == '__main__':
     # print(theoretical_yaws)
     # print(sensor_yaws)
 
-    #print(f"yaw:{theoretical_yaws[0]}, picth:{theoretical_yaws[1]}, roll:{theoretical_yaws[2]}")
+    # print(f"yaw:{theoretical_yaws[0]}, picth:{theoretical_yaws[1]}, roll:{theoretical_yaws[2]}")
     print(f"yaw:{sensor_yaws[0]}, picth:{sensor_yaws[1]}, roll:{sensor_yaws[2]}")
 
     index = 0  # Error in Pitch
     err = abs(np.array(theoretical_yaws_pitch) - np.array(sensor_yaws))
     err = np.array(err)
     print(f" mean:{np.mean(err[:, 1])} ,std:{np.std(err[:, 1])}")
+
+def read_list_quaternions(result_path: str) -> list:
+    x = [f.name for f in os.scandir(result_path) if f.is_file()]
+    return x
+
+if __name__ == '__main__':
+    #code_main_dir = r'J:\Experiments\Endoscopy\Navigation\Sensor\Code\python'
+    code_main_dir = os.getcwd()
+
+    sys.path.append(code_main_dir)
+
+    #result_dir = r'J:\Experiments\Endoscopy\Navigation\Sensor\Results\test_Dec_2020'
+    #result_dir = os.path.join(code_main_dir, 'test_Dec_2020')
+    result_dir = os.path.join(code_main_dir, 'experiments/exp1/1.1')
+
+    filenames = ['quaternions-2020-12-17--11-22-16.q',
+                 'quaternions-2020-12-17--11-27-33.q']
+    #filenames = read_list_quaternions(result_dir)
+    filenames = 'quaternions-2020-12-21--18-14-09.q'
+    filenames = 'quaternions-2020-12-21--18-42-29.q'
+
+    q = load_quaternions(os.path.join(code_main_dir,filenames))
+    # list_q = 0list()
+    # for file in filenames:
+    #     list_q.append(load_quaternions(os.path.join(result_dir, file)))
+    # print_list(list_q)
