@@ -135,7 +135,7 @@ def main():
                 break
             # endregion
 
-            [w, nx, ny, nz, sys_cal, accel_cal, gyro_cal, mag_cal] = read_data(ser)
+            [w, nx, ny, nz, gravity_x, gravity_y, gravity_z, sys_cal, accel_cal, gyro_cal, mag_cal] = read_data(ser)
 
             if flag_initial:
                 list_quaternion.append([w, nx, ny, nz])
@@ -221,30 +221,39 @@ def init() -> ():
 
 
 def read_data(ser: serial) -> list:
+    PAYLOAD_SIZE = 32
     ser.flushInput()  # Flush input buffer, discarding all it’s contents.
     while not(ser.read() == b'B' and ser.read() == b'F'):
         pass        
                 
-    while ser.in_waiting < 20:
+    while ser.in_waiting < PAYLOAD_SIZE:
         pass
         
-    payload = ser.read(20)    
+    payload = ser.read(PAYLOAD_SIZE)
     
     # quaternion data
     quat = struct.unpack('4f', payload[0:16])
     w = quat[0]
     nx = quat[1]
     ny = quat[2]
-    nz = quat[3]      
-    
-    # calibration status data
-    sys_cal = payload[16]
-    accel_cal = payload[17]
-    gyro_cal = payload[18]
-    mag_cal = payload[19]
-    # print(f"{w:10.6f}, {nx:10.6f}, {ny:10.6f}, {nz:10.6f}")
+    nz = quat[3]
+    # gravity vector - m/s^2
+    gravity = struct.unpack('3f', payload[16:28])
+    gravity_x = gravity[0]
+    gravity_y = gravity[1]
+    gravity_z = gravity[2]
 
-    return [w, nx, ny, nz, sys_cal, accel_cal, gyro_cal, mag_cal]
+    # calibration status
+    sys_cal = payload[28]
+    accel_cal = payload[29]
+    gyro_cal = payload[30]
+    mag_cal = payload[31]
+
+    # print(f"{w:10.6f}, {nx:10.6f}, {ny:10.6f}, {nz:10.6f}")
+    # print("{:10.6f}, {:10.6f}, {:10.6f}, {:10.6f}, {:10.6f}, {:10.6f}, {:10.6f}, {:4d}, {:4d}, {:4d}, {:4d}".
+    #       format(w, nx, ny, nz, gravity_x, gravity_y, gravity_z, sys_cal, accel_cal, gyro_cal, mag_cal))
+
+    return [w, nx, ny, nz, gravity_x, gravity_y, gravity_z, sys_cal, accel_cal, gyro_cal, mag_cal]
 
 
 #def draw(w, nx, ny, nz: float, calibrator: list, list_axis: list, current_axis, last_axis: np.ndarray = None) -> ():
