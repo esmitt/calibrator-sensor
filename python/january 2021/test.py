@@ -188,3 +188,11 @@ for index in range(n_angles - 1):
     }
 
 save_dic_to_csv(dic_errors, f"python\\{str_evaluate[index_folder]}.csv")
+
+M = [[1, 2, 3], [1, 1, 1], [2, 2, 2]]
+for i in range(len(M)):
+    sfil = sum(M[i])
+col = 2
+scol, sfil = 0, sum(M[2])
+for i in range(len(M)):
+    scol += M[i][col]

@@ -156,6 +156,7 @@ if __name__ == '__main__':
     #filenames = read_list_quaternions(result_dir)
     filenames = 'quaternions-2020-12-21--18-14-09.q'
     filenames = 'quaternions-2020-12-21--18-42-29.q'
+    filenames = "python/quaternions-2021-01-22--10-44-17.q"
 
     q = load_quaternions(os.path.join(code_main_dir,filenames))
     # list_q = 0list()
