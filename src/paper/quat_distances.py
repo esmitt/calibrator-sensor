@@ -33,6 +33,7 @@ def draw_box_plot(list_entry: List, key_to_plot: str, title: str, y_text:str):
 
 
 def difference_two_signs(degrees: int, value1: float, value2: float) -> float:
+    """Check if two values have different sign to make the correct subtraction"""
     if (value1 * value2) < 0:
         if value1 < 0:
             value1 = degrees + (degrees - abs(value1))
@@ -51,7 +52,7 @@ def compute_distance(list_sensor_data: List, axis: Axis, n_experiments: int, n_d
     if axis == Axis.Z:
         axis_quaternion = [0, 0, 1]
 
-    list_distances = []
+    list_distances = list()
 
     for index_exp in range(1, n_experiments + 1):
         # extract experiment according to the index
@@ -69,38 +70,39 @@ def compute_distance(list_sensor_data: List, axis: Axis, n_experiments: int, n_d
             # compute theoretical quaternion
             q_theo = Quaternion(axis=axis_quaternion, degrees=-degree)
             # distance 1
-            q_temp = q_initial.inverse * q
-            list_experiment[index]['distance1_paper'] = distance_between_quaternions(q_theo, q_temp)
+            # q_temp = q_initial.inverse * q
+            # list_experiment[index]['distance1_paper'] = distance_between_quaternions(q_theo, q_temp)
             # distance 2
-            # key_distance = "distance2"
-            # q_temp = Quaternion(matrix=matmul(inv(q_initial.rotation_matrix), q.rotation_matrix))
-            # list_experiment[index]['distance2_paper'] = distance_between_quaternions(q_theo, q_temp)
+            q_temp = Quaternion(matrix=matmul(inv(q_initial.rotation_matrix), q.rotation_matrix))
+            list_experiment[index]['distance2_paper'] = distance_between_quaternions(q_theo, q_temp)
             # distance 3 (not considered for decoupling)
             # r_temp = q_theo.rotation_matrix - matmul(inv(q_initial.rotation_matrix), q.rotation_matrix)
             # list_experiment[index]['distance3_newpaper'] = norm(r_temp)
 
             # decoupling in angle + axis
-            angle = difference_two_signs(degree, q_temp.degrees, degrees(q_theo.angle))
-            list_experiment[index]['angle1_paper'] = angle
-            list_experiment[index]['axis1_paper'] = norm(q_temp.axis - q_theo.axis)
+            angle_diff = difference_two_signs(degree, q_temp.degrees, degrees(q_theo.angle))
+            axis_diff = norm(q_temp.axis - q_theo.axis)
+            # list_experiment[index]['angle1_paper'] = angle_diff
+            # list_experiment[index]['axis1_paper'] = axis_diff
+            list_experiment[index]['angle2_paper'] = angle_diff
+            list_experiment[index]['axis2_paper'] = axis_diff
+
         list_distances.extend(list_experiment)
     return list_distances
 
-"""
-Es desacoplando el q_temp:
-2. Axis error as distance(q_temp.angle,axis_theo)
-"""
 
 def check_create_dir(path_dir: str):
+    """If directory doesnt exists, then this create it"""
     if not os.path.isdir(path_dir):
         os.mkdir(path_dir)
 
 
-def saving_figure(filename: str, output_path: str, key_metric: str):
+def saving_figure(png_filename: str, output_path: str, key_metric: str):
+    """Outliers are out in figure"""
     plt.figure()
     output_dir = os.path.join(output_path, key_metric)
     check_create_dir(output_dir)
-    output_file = os.path.join(output_dir, filename)
+    output_file = os.path.join(output_dir, png_filename)
     draw_box_plot(list_distances, key_metric, key_metric, "Quat distance").savefig(output_file)
 
 
@@ -163,7 +165,10 @@ if __name__ == "__main__":
                 # draw output
                 filename = f"{axis.value}-{sensor.name.lower()}-{experiment}.png"
 
-                saving_figure(filename, output_path, "distance3_paper")
-                saving_figure(filename, output_path, "angle3_paper")
-                saving_figure(filename, output_path, "axis3_paper")
+                # saving_figure(filename, output_path, "distance1_paper")
+                # saving_figure(filename, output_path, "angle1_paper")
+                # saving_figure(filename, output_path, "axis1_paper")
+                saving_figure(filename, output_path, "distance2_paper")
+                saving_figure(filename, output_path, "angle2_paper")
+                saving_figure(filename, output_path, "axis2_paper")
                 plt.close("all")
