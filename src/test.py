@@ -1,3 +1,5 @@
+"""Works in the folder january 2021"""
+
 import os
 from sensor import *
 import json

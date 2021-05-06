@@ -68,6 +68,24 @@ def get_rotmat(angle: float, ux: float, uy: float, uz: float) -> np.array:
 
      return np.array([rx, ry, rz])
 
+import math
+#https://github.com/adafruit/Adafruit_BNO055/blob/master/utility/quaternion.h
+# v[0] is applied 1st about z (ie, roll)
+# v[1] is applied 2nd about y (ie, pitch)
+# v[2] is applied 3rd about x (ie, yaw)
+def quat_to_rotmat_sensor_adafruit(w: float, x: float, y: float, z: float) -> np.ndarray:
+    sqw = w * w
+    sqx = x * x
+    sqy = y * y
+    sqz = z * z
+    ret = np.array([0] * 3)
+
+    ret[0] = math.atan2(2.0 * (x * y + z * w), (sqx - sqy - sqz + sqw))
+    ret[1] = math.asin(-2.0 * (x * z - y * w) / (sqx + sqy + sqz + sqw))
+    ret[2] = math.atan2(2.0 * (y * z + x * w), (-sqx - sqy + sqz + sqw))
+
+    return ret
+
 def quat_to_rotmat_sensor(w: float, x: float, y: float, z: float) -> np.ndarray:
     angle = 2.0 * acos(w)  # returns angle in radians
     norm = sqrt(x * x + y * y + z * z)
@@ -163,10 +181,10 @@ def compute_axis_theoretical(theta: float, phi: float, ax, ay, az) -> np.ndarray
 
 
 def rotation_matrix_to_ypr(Rt)-> tuple:
-    yaw = degrees(atan2(Rt[1, 0], Rt[0, 0]))
-    roll = degrees(atan2(Rt[2, 1], Rt[2, 2]))
-    pitch = degrees(atan2(-Rt[2, 0], sqrt(pow(Rt[0, 0], 2) + pow(Rt[1, 0], 2))))
-    return yaw,pitch,roll
+    yaw = (degrees(atan2(Rt[1, 0], Rt[0, 0]))+360)%360
+    roll = (degrees(atan2(Rt[2, 1], Rt[2, 2]))+360)%360
+    pitch = (degrees(atan2(-Rt[2, 0], sqrt(pow(Rt[0, 0], 2) + pow(Rt[1, 0], 2))))+360)%360
+    return yaw, pitch, roll
 
 def calibrate_angle0_world(q0: tuple, qlist: list) -> list:
     #Rq0 = quat_to_rotmat_world(q0[0], q0[1], q0[2], q0[3])

@@ -1,0 +1,7 @@
+.idea/*
+data/*
+videos/*
+.vs/*
+venv/*
+arduino/*.json
+arduino/*.adoc

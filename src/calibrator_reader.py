@@ -11,7 +11,7 @@ from datetime import datetime
 import sensor
 import pickle
 import struct
-
+import pandas as pd
 # values to be stored in file
 list_values = list()
 
@@ -51,6 +51,17 @@ def main():
         list_q = None
         initial_q = None
 
+        ### experiments to compare
+        n_experiment = 1
+        degree = 0
+        difference = [0]*3
+        list_output = []
+        first_row = None
+        yaw = 0
+        pitch = 0
+        roll = 0
+        ### experiments to compare
+
         while True:
             event = pygame.event.poll()  # get a single event from the queue
             # region
@@ -84,14 +95,42 @@ def main():
                     list_origin_axis.append(ay0)
                     list_origin_axis.append(az0)
                     print("Initial quaternion saved")
-                elif event.key == pygame.K_a:
-                    theta += 10
+                # elif event.key == pygame.K_a:
+                #     theta += 10
+                # elif event.key == pygame.K_s:
+                #     theta -= 10
+                # elif event.key == pygame.K_d:
+                #     phi += 10
+                # elif event.key == pygame.K_f:
+                #     phi -= 10
+                ############################
+                #### experiments to compare
                 elif event.key == pygame.K_s:
-                    theta -= 10
+                    if degree == 0:
+                        if n_experiment == 1:
+                            first_row = [yaw, pitch, roll]
+                        difference = [0]*3
+                    else:
+                        difference[0], difference[1], difference[2] = abs(first_row[0] - yaw), abs(first_row[1] - pitch), abs(first_row[2] - roll)
+                        if difference[0] > 300:
+                            difference[0] = abs(360 - difference[0])
+                            difference[0] = degree - difference[0]
+                    row = [degree, yaw, pitch, roll, difference[0], difference[1], difference[2], n_experiment]
+                    print(row)
+                    # add degrees and experiment
+                    degree += 10
+                    if degree > 360:
+                        n_experiment += 1
+                        degree = 0
+                    list_output.append(row)
                 elif event.key == pygame.K_d:
-                    phi += 10
-                elif event.key == pygame.K_f:
-                    phi -= 10
+                    # save file
+                    df = pd.DataFrame(list_output, columns=['degrees', 'X', 'Y', 'Z', 'Diff-X', 'Diff-Y', 'Diff-Z', '# exp'])
+                    output_file = datetime.now().strftime("hor_cur_rel-X-%Y-%m-%d--%H-%M-%S.csv")  # X, Y, Z
+                    df.to_csv(output_file, index=False)
+                    print(f"{output_file} saved successfully")
+                ### experiments to compare
+                ############################
                 elif event.key == pygame.K_c:
                     if list_q is None:
                         list_q = list()
@@ -242,9 +281,9 @@ def read_data(ser: serial) -> list:
 
     # Euler angles - degrees
     euler_ang = struct.unpack('3f', payload[16:28])
-    yaw = euler_ang[0]
-    pitch = euler_ang[1]
-    roll = euler_ang[2]
+    yaw = euler_ang[0]  #
+    pitch = euler_ang[1]  #
+    roll = euler_ang[2]  #
 
     # gravity vector  - m/s^2
     gravity = struct.unpack('3f', payload[28:40])
