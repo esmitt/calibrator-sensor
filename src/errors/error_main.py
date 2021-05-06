@@ -331,14 +331,13 @@ def compute_distances_quat_approach1(list_sensor: List, axis: Axis, number_exper
 
             # approach solicitado por debora (05/05/2021) distance 1
             q_temp = q_initial.inverse * q
-            q_temp.degrees
             list_experiment[index]['distance1_newpaper'] = min(math.degrees(Quaternion.distance(q_theo, q_temp)),
                                                             math.degrees(Quaternion.distance(q_theo, -q_temp)))
             # approach solicitado por debora (05/05/2021) distance 2
             q_temp = Quaternion(matrix=np.matmul(np.linalg.inv(q_initial.rotation_matrix), q.rotation_matrix))
             list_experiment[index]['distance2_newpaper'] = min(math.degrees(Quaternion.distance(q_theo, q_temp)),
                                                                math.degrees(Quaternion.distance(q_theo, -q_temp)))
-            # approach solicitado por debora (05/05/2021) distance 2
+            # approach solicitado por debora (05/05/2021) distance 3
             r_temp = q_theo.rotation_matrix - np.matmul(np.linalg.inv(q_initial.rotation_matrix), q.rotation_matrix)
             list_experiment[index]['distance3_newpaper'] = np.linalg.norm(r_temp)
 

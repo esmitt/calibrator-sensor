@@ -4,6 +4,40 @@ import numpy as np
 from pyquaternion import Quaternion
 import pandas as pd
 import pickle
+from enum import Enum
+import csv
+from typing import List, Dict
+
+
+class Axis(Enum):
+    X = "Xaxis"
+    Y = "Yaxis"
+    Z = "Zaxis"
+
+class Sensor(Enum):
+    RELATIVE = "IMU"
+    ABSOLUTE = "NDOF"
+
+
+def read_csv(filename: str) -> List[Dict]:
+    list_entries = []
+    with open(filename) as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        for row in csv_reader:
+            dic_entry = {}
+            yaw_pitch_roll = (float(row[2]), float(row[3]), float(row[4]))
+            q = Quaternion(row[5], row[6], row[7], row[8])
+
+            # add experiment number & degree & quaternion
+            dic_entry["exp"] = int(row[0])
+            dic_entry["degrees"] = int(row[1])
+            dic_entry["ypr"] = (float(row[2]), float(row[3]), float(row[4]))
+            # dic_entry["yaw"] = float(row[2])
+            # dic_entry["pitch"] = float(row[3])
+            # dic_entry["roll"] = float(row[4])
+            dic_entry["q"] = q
+            list_entries.append(dic_entry)
+    return list_entries
 
 # Q is a Nx4 numpy matrix and contains the quaternions to average in the rows.
 # The quaternions are arranged as (w,x,y,z), with w being the scalar
