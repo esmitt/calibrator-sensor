@@ -2,12 +2,12 @@
 from pyquaternion import Quaternion
 import pandas as pd
 from tqdm import tqdm
-from errors.converter import to_quaternion
+from src.errors.converter import to_quaternion
 
 
 def compute_reference(yaw0: float, pitch0: float, roll0: float) -> pd.DataFrame:
     q_initial = to_quaternion(yaw0, pitch0, roll0)
-    degree_u, degree_t = -180, +180
+    degree_u, degree_t = 0, +360
 
 
     list_distances = list()
