@@ -5,3 +5,4 @@ videos/*
 venv/*
 arduino/*.json
 arduino/*.adoc
+*.csv

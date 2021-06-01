@@ -1,16 +1,16 @@
 import math
 
-from errors.reference import compute_reference
-from errors.converter import to_quaternion
-from sensor.sensor import quat_to_rotmat_sensor, rotation_matrix_to_ypr
-from sensor.sensor import get_rotmat
+from src.errors.reference import compute_reference
+from src.errors.converter import to_quaternion
+from src.sensor.sensor import quat_to_rotmat_sensor, rotation_matrix_to_ypr
+from src.sensor.sensor import get_rotmat
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import os
 import csv
-from sensor import sensor
+from src.sensor import sensor
 from pyquaternion import Quaternion
 from typing import List, Dict, Tuple, Any, Optional
 from enum import Enum
@@ -456,7 +456,7 @@ def draw_box_plot(list_entry: List, key_to_plot: str, title: str, y_text:str):
     sret.set(title=title, ylabel=y_text)
     #, showfliers=False
     #plt.legend(title='Team', fontsize='2', title_fontsize='12')
-    #plt.show()
+    plt.show()
     return sret.get_figure()
 
 
@@ -648,18 +648,21 @@ if __name__ == "__main__":
         # },
     }
     # to save different approaches
-    saveFig(database)
+    ##saveFig(database)
     # until here to save figures
 
     #load_reference()
 
     # set initial config for execution
-    experiment = 180
+    #experiment = 180
+    experiment = 360
     sensor, axis = Sensor.RELATIVE, Axis.X
-    number_experiments = 10
-    number_degrees = 18
+    #number_experiments = 10
+    number_experiments = 5
+    #number_degrees = 18
+    number_degrees = 36
 
-    base_path = f"D:\\code\\BNO055_AHRS_Python_v2--TxtFrame\\python\\errors\\{experiment}"
+    base_path = f"D:\\code\\BNO055_AHRS_Python_v2--TxtFrame\\data\\errors\\{experiment}"
 
     # load the proper file
     file_path = os.path.join(base_path, sensor.value)
@@ -670,11 +673,11 @@ if __name__ == "__main__":
     list_file = read_csv(filename)
     #list_distances = compute_distances_ypr_sensor(list_file, axis, number_experiments, number_degrees)
     # the used one
-    #list_distances = compute_distances_ypr_rot(list_file, axis, number_experiments, number_degrees)
+    list_distances = compute_distances_ypr_rot(list_file, axis, number_experiments, number_degrees)
     #list_distances = compute_distances_ypr_quat(list_file, axis, number_experiments, number_degrees)
     #list_distances = compute_distances_quat(list_file, Axis.X, number_experiments, number_degrees)
     #list_distances = compute_distances_quat_as_theoretical(list_file, axis, number_experiments, number_degrees)
-    list_distances = compute_distances_quat_approach1(list_file, axis, number_experiments, number_degrees)
+    #list_distances = compute_distances_quat_approach1(list_file, axis, number_experiments, number_degrees)
     #list_distances = compute_distances_quat_robot(list_file, Axis.Z, number_experiments, number_degrees)
 
     #list_distances = compute_distances_quat_theo(list_file)
@@ -719,7 +722,8 @@ if __name__ == "__main__":
     #         list_d[index]["distance_roll"] = difference_float(180, list_d[index]["distance_roll"])
 
 
-    #draw_box_plot(list_d, f"distance{text}", title="Error in degrees", y_text=f"error in {axis.name}({text})")
+    draw_box_plot(list_distances, f"distance{text}", title="Error in degrees", y_text=f"error in {axis.name}({text})")
+    #plt.show()
     #draw_box_plot(list_distances, f"distance{text}", title="Error in degrees", y_text=f"error in {axis.name}({text})")
     #
     # list_d = [item for item in list_distances if item["degrees"] > 0]
@@ -735,11 +739,11 @@ if __name__ == "__main__":
 
     # #output_dir = f"D:\\code\\BNO055_AHRS_Python_v2--TxtFrame\\python\\errors\\{sensor.name.lower()}\\{experiment}\\error_dist_quat\\Axis-X"
     # list_distances = compute_distances_quat(list_file, Axis.X, number_experiments, number_degrees)
-    plt.figure()
-    draw_box_plot(list_distances, f"distance_ap1", title=f"Error axis {axis.name}", y_text=f"distance in quaternion").savefig("t1.png")
-    plt.figure()
-    draw_box_plot(list_distances, f"distance", title=f"Error axis {axis.name}",
-                  y_text=f"distance in quaternion").savefig("t2.png")
+    # plt.figure()
+    # draw_box_plot(list_distances, f"distance_ap1", title=f"Error axis {axis.name}", y_text=f"distance in quaternion").savefig("t1.png")
+    # plt.figure()
+    # draw_box_plot(list_distances, f"distance", title=f"Error axis {axis.name}",
+    #               y_text=f"distance in quaternion").savefig("t2.png")
     # #plt.savefig(os.path.join(output_dir, "x.png"), dpi=1200)
     # list_distances = compute_distances_quat(list_file, Axis.Y, number_experiments, number_degrees)
     # draw_box_plot(list_distances, f"distance", title="Error q-qtheo", y_text=f"error in quaternion")

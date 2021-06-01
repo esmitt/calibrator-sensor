@@ -17,10 +17,20 @@ sns.set() # Setting seaborn as default style even if use only matplotlib
 sns.despine()
 matplotlib.use('TkAgg' )
 
+from src.errors.reference import compute_reference
 
-def distance_between_quaternions(q0: Quaternion, q1: Quaternion):
-    """ Equivalent to absolute quaternion"""
-    return min(degrees(Quaternion.distance(q0, q1)), degrees(Quaternion.distance(q0, -q1)))
+sns.set() # Setting seaborn as default style even if use only matplotlib
+#sns.set_theme(style="whitegrid")
+sns.despine()
+#matplotlib.use('TkAgg' )
+
+
+def distance_between_quaternions(q0: Quaternion, q1: Quaternion,dist_type='euclidean'):
+
+    if dist_type=='euclidean':
+        return min(degrees(Quaternion.absolute_distance(q0, q1)), degrees(Quaternion.absolute_distance(q0, -q1)))
+    else:
+        return min(degrees(Quaternion.distance(q0, q1)), degrees(Quaternion.distance(q0, -q1)))
 
 
 def difference_two_signs(degrees: int, value1: float, value2: float) -> float:
@@ -34,12 +44,10 @@ def difference_two_signs(degrees: int, value1: float, value2: float) -> float:
 
 
 def difference_two_values(v1: float, v2: float) -> float:
-    """ Difference between max and min values"""
     return (max(v1, v2) - min(v1, v2))%360
 
 
-def compute_distance(list_sensor_data: List, axis: Axis, n_experiments: int, n_degrees: int) -> List:
-    """ Compute the values to plot such as: distance, axis, ypr, etc."""
+def compute_distance(list_sensor_data: List, axis: Axis, n_experiments: int, n_degrees: int,dist_type='euclidean') -> List:
     # chose axis to spin
     axis_quaternion = [0]
     if axis == Axis.X:
@@ -148,7 +156,7 @@ def compute_distance(list_sensor_data: List, axis: Axis, n_experiments: int, n_d
 
             # distance 1
             q_temp = q_initial.inverse * q
-            list_experiment[index]['distance1_paper'] = distance_between_quaternions(q_theo, q_temp)
+            list_experiment[index]['distance1_paper'] = distance_between_quaternions(q_theo, q_temp,dist_type)
             # distance 2
             # q_temp = Quaternion(matrix=matmul(inv(q_initial.rotation_matrix), q.rotation_matrix))
             # list_experiment[index]['distance2_paper'] = distance_between_quaternions(q_theo, q_temp)
@@ -157,7 +165,8 @@ def compute_distance(list_sensor_data: List, axis: Axis, n_experiments: int, n_d
             # list_experiment[index]['distance3_newpaper'] = norm(r_temp)
 
             # decoupling in angle + axis
-            angle_diff = difference_two_signs(degree, q_temp.degrees, degrees(q_theo.angle))
+            # angle_diff = difference_two_signs(degree, q_temp.degrees, degrees(q_theo.angle))
+            angle_diff = abs( q_temp[0]- q_theo[0])
             axis_diff = norm(q_temp.axis - q_theo.axis)
             list_experiment[index]['angle1_paper'] = angle_diff
             list_experiment[index]['axis1_paper'] = axis_diff
@@ -176,7 +185,7 @@ def draw_box_plot(list_entry: List, key_to_plot: str, title: str):
         sns.set_context("paper", font_scale=3.5, rc={"lines.linewidth": 2.5})
         #sns.set_context("paper")
         #sret = sns.boxplot(x='degrees', y=f'{key_to_plot}', palette="Blues", data=df_list, showfliers=False)
-        sret = sns.boxplot(x='degrees', y=f'{key_to_plot}', data=df_list, showfliers=False, palette="light:black")  #, palette="light:black",palette="dark:red"
+        sret = sns.boxplot(x='degrees', y=f'{key_to_plot}', data=df_list, showfliers=False)  #, palette="light:black",palette="dark:red"
         #sret = sns.pointplot(x='degrees', y=f'{key_to_plot}', data=df_list,showfliers=False)
         #sret = sns.lineplot(x='degrees', y=f'{key_to_plot}', data=df_list)
         #sret.set(title=title, ylabel=y_text)
@@ -211,43 +220,9 @@ def saving_figure(list_dist: List, png_filename: str, output_path: str, key_metr
     #draw_box_plot(filter_dist, key_metric, title, "degrees").savefig(output_file)
     ### used in paper
     #draw_box_plot(list_distances, key_metric, "Error in degrees for axis Y", "Error in degrees")
-    #plt.show()
+    plt.show()
     plt.waitforbuttonpress()
     #### used in paper
-
-
-def draw_reference():
-    """ Just to draw the reference image from th csv"""
-    # for reference
-    import pandas as pd
-    pddata = pd.read_csv("reference0to360.csv")
-    # sret = sns.pointplot(x="yaw", y="distance", data=pddata)
-
-    proll = pddata[(pddata["pitch"] == 0) & (pddata["roll"] == 0)]
-    # distance
-    list_distance = proll["distance"].to_list()
-    list_difference = []
-    for degree in range(0, 360):
-        list_difference.append({
-            "yaw": degree,
-            "distance": degrees(list_distance[degree])
-        })
-
-    presult = pd.DataFrame(list_difference)
-
-    plt.figure()
-    with sns.axes_style("whitegrid"):
-        # sns.set_context("paper", rc={"font.size": 30, "axes.titlesize": 16, "axes.labelsize": 12})
-        sns.set_context("paper", font_scale=3.5, rc={"lines.linewidth": 2.5})
-        sret = sns.lineplot(x="yaw", y="distance", data=presult)
-        # sret.set_xticks(range(2, 35, 3))
-
-        sret.set_xticks(range(0, 361, 30))
-        sret.set_xticklabels(range(0, 361, 30))
-        sret.set(xlabel=None, ylabel=None)
-        plt.tight_layout()
-        plt.show()
-    plt.waitforbuttonpress()
 
 
 if __name__ == "__main__":
@@ -309,40 +284,38 @@ if __name__ == "__main__":
                 # draw output
                 filename = f"{axis.value}-{sensor.name.lower()}-{experiment}.png"
                 #plt.figure()
-                #saving_figure(list_distances, filename, output_path, "distance1_paper", f"Quaternion distance in {axis.value} ({sensor.name.lower()})")
+                saving_figure(list_distances, filename, output_path, "distance1_paper", f"Quaternion distance in {axis.value} ({sensor.name.lower()})")
                 #saving_figure(list_distances, filename, output_path, "droll", "")
                 # saving_figure(list_distances, filename, output_path, "dpitch",
                 #               f"Quaternion distance in {axis.value} ({sensor.name.lower()})")
                 # saving_figure(list_distances, filename, output_path, "droll",
                 #               f"Quaternion distance in {axis.value} ({sensor.name.lower()})")
                 saving_figure(list_distances, filename, output_path, "angle1_paper", f"Angle distance in {axis.value} ({sensor.name.lower()})")
-                #saving_figure(list_distances, filename, output_path, "axis1_paper", f"Axis distance in {axis.value} ({sensor.name.lower()})")
+                saving_figure(list_distances, filename, output_path, "axis1_paper", f"Axis distance in {axis.value} ({sensor.name.lower()})")
 
                 ##### for paper
-                # df_list = pd.DataFrame(list_distances, index=None)
-                # with sns.axes_style("whitegrid"):
+                #df_list = pd.DataFrame(list_distances, index=None)
+                #with sns.axes_style("whitegrid"):
                 #     sns.set_context("paper", font_scale=3.5, rc={"lines.linewidth": 3.0})
                 #     sret = sns.pointplot(join=False, x='degrees', y='distance_yaw', data=df_list, color="blue")
                 #     sret = sns.pointplot(join=False,x='degrees', y='distance_yaw_quat', data=df_list,  color="red")
-                #
+
                 #     sret.set_xticks(range(2, 35, 3))
-                #     #sret.set_xticks(range(30, 360, 30))
-                #     sret.set_xticklabels(range(30, 360, 30))
-                #     sret.set(xlabel=None, ylabel=None)
-                #     plt.tight_layout()
-                # plt.show()
+                     #sret.set_xticks(range(30, 360, 30))
+                 #    sret.set_xticklabels(range(30, 360, 30))
+                 #    sret.set(xlabel=None, ylabel=None)
+                 #    plt.tight_layout()
+                #plt.show()
                 ##### for paper
 
                 #saving_figure(list_distances, filename, output_path, "distance_yaw_quat",
                 #              f"Axis distance in {axis.value} ({sensor.name.lower()})")
 
 
-                # saving_figure(filename, output_path, "distance2_paper")
-                # saving_figure(filename, output_path, "angle2_paper")
-                # saving_figure(filename, output_path, "axis2_paper")
+                #saving_figure(filename, output_path, "distance2_paper")
+                #saving_figure(filename, output_path, "angle2_paper")
+                #saving_figure(filename, output_path, "axis2_paper")
                 ### used in paper
                 #saving_figure(filename, output_path, "distance_ypr")
                 ### used in paper
                 plt.close("all")
-
-    #draw_reference()
